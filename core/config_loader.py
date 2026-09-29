@@ -221,7 +221,17 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         if not isinstance(file_config, dict):
             raise ValueError(f"配置文件格式错误, 顶层必须是字典: {path}")
 
+    # 本地覆盖文件不进入 Git, 用于数据库密码、API Key 等机器相关配置。
+    local_path = os.path.join(os.path.dirname(path), "config.local.yaml")
+    local_config: Dict[str, Any] = {}
+    if os.path.isfile(local_path):
+        with open(local_path, "r", encoding="utf-8") as handle:
+            local_config = yaml.safe_load(handle) or {}
+        if not isinstance(local_config, dict):
+            raise ValueError(f"配置文件格式错误, 顶层必须是字典: {local_path}")
+
     config = deep_merge(DEFAULT_CONFIG, file_config)
+    config = deep_merge(config, local_config)
     config["_config_path"] = path
     config["_project_root"] = os.path.dirname(path)
     return config
