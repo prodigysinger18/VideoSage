@@ -1,0 +1,17 @@
+# Copy to config.local.yaml and fill in local paths/database settings.
+database:
+  enabled: false
+  driver: "ODBC Driver 17 for SQL Server"
+  server: "localhost"
+  database: "VideoSageDB"
+  username: ""
+  password: ""
+
+security:
+  api_key: ""
+
+llm:
+  enabled: false
+  api_key: ""
+  base_url: ""
+  model: ""

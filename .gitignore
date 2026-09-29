@@ -1,0 +1,40 @@
+# Python cache and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+.env
+
+# Local configuration and secrets
+config.local.yaml
+*.local.yaml
+
+# Video inputs and generated analysis results
+data/videos/
+data/results/
+data/evaluation/
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+
+# Model weights and exported runtime artifacts
+models/**/*.onnx
+models/**/*.pt
+*.onnx
+*.pt
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+desktop.ini

@@ -1,0 +1,4 @@
+<script setup>
+import { onMounted, ref } from 'vue'; import { getAnomalies } from '../api/result.js'; const rows=ref([]); onMounted(async()=>rows.value=await getAnomalies())
+</script>
+<template><section class="panel"><div class="section-head"><div><h2>异常事件</h2><p>集中查看 fall、lying、running 等检测结果</p></div><el-tag type="danger">{{ rows.length }} 条</el-tag></div><el-table :data="rows"><el-table-column prop="video_id" label="视频"/><el-table-column prop="person_id" label="人物"/><el-table-column prop="event" label="事件"/><el-table-column label="严重级别"><template #default="s"><el-tag :type="s.row.severity==='high'?'danger':'warning'">{{ s.row.severity }}</el-tag></template></el-table-column><el-table-column prop="start_time" label="开始(s)"/><el-table-column prop="end_time" label="结束(s)"/><el-table-column label="置信度"><template #default="s">{{ (s.row.confidence*100).toFixed(1) }}%</template></el-table-column></el-table></section></template>

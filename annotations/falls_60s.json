@@ -1,0 +1,81 @@
+[
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 3.5130,
+    "end_time": 4.3154
+  },
+ {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 7.5220,
+    "end_time": 8.3220
+  },
+
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 13.9723,
+    "end_time": 14.5562
+  },
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 17.4341,
+    "end_time": 20.6039
+  },
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 21.6883,
+    "end_time": 22.9396
+  },
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 24.5130,
+    "end_time": 25.5170
+  },
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 28.6619,
+    "end_time": 29.2405
+  },
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 36.0021,
+    "end_time": 38.0201
+  },
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 42.261,
+    "end_time": 42.834
+  },
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 43.6686,
+    "end_time": 44.2108
+  },
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 46.6299,
+    "end_time": 47.5475
+  },
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 48.5068,
+    "end_time": 51.5098
+  },
+  {
+    "person_id": 1,
+    "event": "fall",
+    "start_time": 57.8077,
+    "end_time": 58.8922
+  }
+]

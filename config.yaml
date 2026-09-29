@@ -1,0 +1,194 @@
+# ============================================================================
+# VideoSage 全局配置文件
+# 规范来源: agent.md 第 7 节 —— 禁止在代码中硬编码模型路径 / 参数 / 文件路径
+# 所有路径均相对于本文件所在目录(项目根目录)解析
+# ============================================================================
+
+project:
+  name: "VideoSage"
+  stage: 2
+  description: "视频输入、人物跟踪、姿态估计与基础行为分析"
+
+backend:
+  upload_max_size_mb: 1024
+
+logging:
+  level: "INFO"
+
+security:
+  api_key: ""                 # 留空时关闭 API Key；也可用 VIDEOSAGE_API_KEY 环境变量
+
+# ------------------------------- 路径配置 -----------------------------------
+paths:
+  model_path: "yolo11n.pt"
+  pose_model_path: "models/yolo/yolo11n-pose.pt"
+  video_dir: "data/videos"
+  video_path: null                # 指定单个视频文件; 为 null 时从 video_dir 自动选取
+  results_dir: "data/results"
+  tracks_file: "data/results/tracks.json"
+  performance_file: "data/results/performance.json"
+  annotated_video_dir: "data/results/videos"
+  pose_results_file: "data/results/poses/person_poses.json"
+  behavior_results_file: "data/results/behaviors/behavior_segments.json"
+  outfit_results_file: "data/results/appearance/outfit_profiles.json"
+  anomaly_results_file: "data/results/behaviors/anomaly_segments.json"
+  activity_results_file: "data/results/behaviors/activity_segments.json"
+
+# ------------------------------- 视频读取 -----------------------------------
+video:
+  frame_start: 0        # 起始帧(含, 0 基), 用于跳过片头
+  frame_stride: 1       # 抽帧步长, 1 = 逐帧处理
+  max_frames: 0         # 最多处理帧数, 0 = 不限制
+
+# --------------------------- 检测模块(YOLO11) -------------------------------
+# 说明: 该模块只负责检测, 不承担跟踪 / 存储 / 行为分析
+detection:
+  conf_threshold: 0.3
+  iou_threshold: 0.6
+  imgsz: 640            # 推理输入尺寸, RTX4060 Laptop 上 640 为速度/精度折中
+  max_det: 100          # 不限制为固定人数; 由置信度、跟踪和身份确认过滤误检
+  device: 0             # 0 = 第一块 GPU, "cpu" = CPU
+  quantize: 16          # 16 = FP16 半精度推理, 32 或 null = FP32
+  classes: [0]          # COCO 类别 0 = person, 只检测人物
+  class_names:
+    0: "person"
+
+# --------------------------- 跟踪模块(ByteTrack) ----------------------------
+# 说明: 该模块只负责跟踪, 输入为检测结果 [x1,y1,x2,y2,conf], 输出 [x1,y1,x2,y2,person_id]
+tracking:
+  track_high_thresh: 0.35       # 高分检测框阈值, 与 Ultralytics 8.4.150 默认值一致
+  track_low_thresh: 0.1         # 低分检测框阈值(第二阶段关联, 利用遮挡时的低置信框)
+  new_track_thresh: 0.5         # 新轨迹使用更可靠检测, 减少弱误检创建新 ID
+  min_hits: 2                   # 新轨迹连续命中多少帧后才输出, 抑制单帧误检
+  track_buffer: 120             # 轨迹丢失后约保留 4 秒(按 30FPS 折算)
+  match_thresh: 0.8             # 允许动作/镜头变化时更大的 bbox 位移
+  second_match_thresh: 0.5      # 第二阶段 IoU 代价阈值
+  unconfirmed_match_thresh: 0.7 # 未确认轨迹(只有 1 帧历史)的关联阈值
+  min_box_area: 400             # 小框过滤的绝对面积下限
+  min_box_area_ratio: 0.001     # 按画面面积自适应, 支持不同分辨率和远处人物
+  fuse_score: true              # 将检测置信度融合进 IoU 代价, 提升关联可靠性
+  kalman:
+    std_weight_position: 0.05     # 位置噪声标准差权重(ByteTrack 默认 1/20)
+    std_weight_velocity: 0.00625  # 速度噪声标准差权重(ByteTrack 默认 1/160)
+  frame_rate: null              # null = 使用视频自身 FPS 计算 track_buffer
+
+# --------------------------- 全局人物身份归并 ------------------------------
+identity:
+  max_persons: 0                 # 0 = 动态人数且不设上限
+  appearance_weight: 0.75        # 外观颜色特征是跨轨迹归并的主要依据
+  position_weight: 0.20          # 短时间内使用位置连续性辅助判断
+  size_weight: 0.05              # bbox 尺寸比例只作为弱辅助
+  appearance_match_threshold: 0.4
+  appearance_match_margin: 0.02  # 最佳候选需明显优于次佳候选，避免多人身份串线
+  reid_feature_weight: 0.65      # ReID 与上下装颜色特征融合，兼顾跨镜头和多人区分
+  global_merge_threshold: 0.4   # 全视频轨迹归并阈值；同帧共现身份永不合并
+  position_time_window: 2.0      # 超过该时间后不再依赖旧位置
+  template_update_alpha: 0.05    # 缓慢更新身份外观模板, 防止短时特效污染
+  template_update_min_confidence: 0.45
+  confirmation_frames: 5         # 新轨迹持续存在后才创建全局人物身份
+  min_pending_features: 3        # 至少融合多个有效 ReID 特征后再确认身份
+  pending_ttl_seconds: 3.0       # 清理短暂误检留下的待确认轨迹
+  reid_model_path: "models/reid/person_reid_youtu_2021nov.onnx" # OpenCV Zoo YoutuReID
+  reid_input_width: 128
+  reid_input_height: 256
+  reid_use_cuda: true
+  max_appearance_templates: 8   # 每个身份保留多个视角/姿态模板
+  reid_update_interval: 15      # 已确认轨迹每隔 N 帧刷新一次深度外观模板
+
+# ------------------------------- 可视化 -------------------------------------
+visualization:
+  box_thickness: 2
+  text_thickness: 2
+  font_scale: 0.7
+  box_color: [0, 255, 0]        # BGR 单色模式
+  text_color: [255, 255, 255]
+  use_id_color: true            # 按 person_id 分配颜色, 便于肉眼区分不同人物
+
+# ------------------------------- 输出配置 -----------------------------------
+output:
+  show_window: true             # 显示跟踪窗口(按 ESC 退出)
+  save_annotated_video: true    # 保存带标注视频(阶段一要求: 输出带标注视频)
+  draw_confidence: true         # 在标签中附带置信度
+  window_name: "VideoSage - Person Tracking"
+
+# ------------------------------- 性能记录 -----------------------------------
+performance:
+  warmup_frames: 10             # 前 N 帧为模型预热, 不计入耗时统计
+  gpu_sample_interval: 30       # GPU 显存采样间隔(帧)
+
+# --------------------------- Pose 模块(YOLO11 Pose) -------------------------
+pose:
+  conf_threshold: 0.25
+  iou_threshold: 0.7
+  imgsz: 640
+  max_det: 1
+  device: 0
+  quantize: 16
+  keypoint_conf_threshold: 0.3   # 关键点置信度低于该值时视为不可靠
+
+# --------------------------- 行为分析(规则 + 时间序列) ---------------------
+action:
+  smoothing_window_size: 7        # 逐帧行为平滑窗口
+  switch_confirmations: 3         # 新状态连续成为窗口多数后才切换
+  walking_window_size: 10         # walking 判断所需的时间窗口
+  min_segment_seconds: 0.5        # 小于该时长的行为段会被合并
+  standing_knee_angle_thresh: 140
+  standing_torso_angle_thresh: 20
+  standing_max_center_displacement: 0.08
+  standing_max_ankle_motion: 0.06
+  sitting_knee_angle_thresh: 110
+  walking_min_center_displacement: 0.25
+  walking_min_ankle_motion: 0.12
+  min_keypoint_visible_ratio: 0.35
+  min_keypoint_confidence: 0.28
+
+# --------------------------- 穿搭分析(轻量规则) ---------------------------
+appearance:
+  sample_interval_frames: 15     # 不必逐帧重复分析颜色和服装区域
+  min_keypoint_confidence: 0.3
+
+# --------------------------- 危险/异常行为分析 ----------------------------
+anomaly:
+  window_seconds: 2.0
+  running_speed_threshold: 0.8   # 每秒移动的 bbox 高度倍数
+  sudden_down_threshold: 0.25    # 窗口内向下位移的 bbox 高度倍数
+  lying_aspect_ratio: 1.15
+  lying_torso_angle: 55.0
+  stationary_seconds: 10.0
+  stationary_displacement: 0.08
+  abnormal_speed_threshold: 1.8
+  confirmation_frames: 3
+  abnormal_max_seconds: 2.0
+  movement_deadzone: 0.03
+  direction_confirmation_frames: 2
+  abnormal_path_ratio: 2.5
+  abnormal_min_path: 0.25
+  scene_cut_displacement: 0.8
+  scene_cut_size_change: 0.35
+  abnormal_cooldown_seconds: 1.0
+  fall_confirmation_frames: 2
+  fall_min_vertical_drop: 0.20
+  fall_min_vertical_speed: 0.08
+  fall_upright_torso_angle: 45.0
+  fall_cooldown_seconds: 1.5
+  fall_window_seconds: 1.0
+  fall_active_seconds: 0.6
+  max_gap_seconds: 0.3
+  min_duration_seconds: 0.3
+  related_event_gap_seconds: 1.0
+
+# --------------------------- SQL Server 数据库 -----------------------------
+database:
+  enabled: true
+  driver: "ODBC Driver 17 for SQL Server"
+  server: "localhost"
+  database: "VideoSageDB"
+  username: ""
+  password: ""
+
+# --------------------------- LLM Agent -------------------------------------
+llm:
+  enabled: false
+  api_key: ""
+  base_url: ""
+  model: ""
